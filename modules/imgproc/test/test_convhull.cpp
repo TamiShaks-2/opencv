@@ -239,6 +239,51 @@ TEST_P(ConvexityDefects_regression_5908, simple)
     EXPECT_EQ(4, (int)result.size());
 }
 
+//NEW ONE!!!!-that i worte🎉🤩🤩
+TEST(Imgproc_ConvexHull, dense_columns_consistency)
+{
+    std::vector<Point> points{
+        Point(0, 0), Point(0, 2), Point(0, 5),
+        Point(1, 1), Point(1, 3), Point(1, 6),
+        Point(2, 0), Point(2, 2), Point(2, 7),
+        Point(3, 1), Point(3, 4), Point(3, 6),
+        Point(2, 7), // duplicate extreme point
+        Point(1, 3)  // duplicate inner point
+    };
+
+    std::vector<Point> hull_pts;
+    std::vector<int> hull_idx;
+
+    convexHull(points, hull_pts, false, true);
+    convexHull(points, hull_idx, false, false);
+
+    ASSERT_EQ(hull_pts.size(), hull_idx.size());
+    ASSERT_GE(hull_pts.size(), 3u);
+
+    for (size_t i = 0; i < hull_idx.size(); ++i)
+    {
+        ASSERT_GE(hull_idx[i], 0);
+        ASSERT_LT(hull_idx[i], (int)points.size());
+        EXPECT_EQ(hull_pts[i], points[hull_idx[i]]);
+    }
+
+    std::vector<Point> expected{
+        Point(0, 0),
+        Point(2, 0),
+        Point(3, 1),
+        Point(3, 6),
+        Point(2, 7),
+        Point(0, 5)
+    };
+
+    ASSERT_EQ(expected.size(), hull_pts.size());
+
+    for (size_t i = 0; i < expected.size(); ++i)
+    {
+        EXPECT_EQ(expected[i], hull_pts[i]) << "Mismatch at hull vertex " << i;
+    }
+}
+
 INSTANTIATE_TEST_CASE_P(Imgproc, ConvexityDefects_regression_5908,
         testing::Combine(
                 testing::Bool(),
