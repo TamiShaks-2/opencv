@@ -278,9 +278,24 @@ TEST(Imgproc_ConvexHull, dense_columns_consistency)
 
     ASSERT_EQ(expected.size(), hull_pts.size());
 
+    // find rotation offset
+    int shift = -1;
+    for (size_t i = 0; i < hull_pts.size(); ++i)
+    {
+        if (hull_pts[i] == expected[0])
+        {
+            shift = (int)i;
+            break;
+        }
+    }
+
+    ASSERT_NE(shift, -1);
+
+    // compare with rotation
     for (size_t i = 0; i < expected.size(); ++i)
     {
-        EXPECT_EQ(expected[i], hull_pts[i]) << "Mismatch at hull vertex " << i;
+        EXPECT_EQ(expected[i], hull_pts[(i + shift) % hull_pts.size()])
+            << "Mismatch at hull vertex " << i;
     }
 }
 

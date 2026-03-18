@@ -7,5 +7,5 @@ namespace cv {
 							 Point** out_points,
                              int& total,                             
                              int& ind_miny,
-                             int& ind_maxy)
+                             int& ind_maxy);
 } // namespace cv

@@ -8,66 +8,84 @@
 namespace cv {
 
 bool convex_hull_bucket_sort(const Point* data,
-							 Point** out_points,
-                             int& total,                             
+                             Point** out_points,
+                             int& total,
                              int& ind_miny,
                              int& ind_maxy)
 {
-    if (total <= 0) return true;
+    if (total <= 0)
+        return true;
 
-    // 1. finding the range of X values
-    int minX =std::min_element(data, data + total);
-    int maxX =std::max_element(data, data + total);
-    int rangeX = maxX - minX + 1;
-    // sanity check to avoid excessive memory usage
-    const int MAX_RANGE = 100000;
-    if (rangeX > MAX_RANGE)
-        return false; // let caller do std::sort path
+    // 1) Find minX and maxX
+    int minX = data[0].x;
+    int maxX = data[0].x;
 
-    
-    // 2. create buckets that store POINTERS into data
-    std::vector<Point*> min_buckets(rangeX, nullptr);
-    std::vector<Point*> min_buckets(rangeX, nullptr);
-    // 3. fill buckets
-    for (int i = 0; i < total; ++i)
+    for (int i = 1; i < total; ++i)
     {
-        int x = data[i].x;
-        int y = data[i].y;
-        int idx = x - minX;
-        if (min_buckets[idx] == nullptr || y < min_buckets[idx]->y )
-        {
-            min_buckets[idx] = &data[i];
-        }
-        if (max_buckets[idx] == nullptr || y > max_buckets[idx]->y )
-        {
-            max_buckets[idx] = &data[i];
-        }
+        minX = std::min(minX, data[i].x);
+        maxX = std::max(maxX, data[i].x);
     }
 
-    
-    // 4. rebuild pointer array in sorted X order
+    const int rangeX = maxX - minX + 1;
+    const int MAX_RANGE = 100000;
+
+    if (rangeX <= 0 || rangeX > MAX_RANGE)
+        return false; // let caller fallback to std::sort
+
+    // 2) Create buckets that store pointers into data
+    std::vector<const Point*> min_buckets(rangeX, nullptr);
+    std::vector<const Point*> max_buckets(rangeX, nullptr);
+
+    // 3) Fill buckets
+    for (int i = 0; i < total; ++i)
+    {
+        const int x = data[i].x;
+        const int y = data[i].y;
+        const int idx = x - minX;
+
+        if (min_buckets[idx] == nullptr || y < min_buckets[idx]->y)
+            min_buckets[idx] = &data[i];
+
+        if (max_buckets[idx] == nullptr || y > max_buckets[idx]->y)
+            max_buckets[idx] = &data[i];
+    }
+
+    // 4) Rebuild output pointer array in sorted X order
     int out = 0;
     for (int i = 0; i < rangeX; ++i)
     {
-        if (min_buckets[i] == -1)
+        if (min_buckets[i] == nullptr)
             continue;
-        pointer[out++] = &data[min_buckets[i]];
-        if (max_buckets[i] != min_buckets[i])
-            pointer[out++] = &data[max_buckets[i]];
-     }   
+
+        const Point* pmin = min_buckets[i];
+        const Point* pmax = max_buckets[i];
+
+        // keep same-X points in ascending Y order
+        if (pmax != nullptr && pmin->y > pmax->y)
+            std::swap(pmin, pmax);
+
+        out_points[out++] = const_cast<Point*>(pmin);
+
+        if (pmax != pmin)
+            out_points[out++] = const_cast<Point*>(pmax);
+    }
+
     total = out;
-    // 5) compute miny/maxy indices w.r.t. out_points[0..total)
+
+    // 5) Compute miny/maxy indices w.r.t. out_points[0..total)
     ind_miny = 0;
     ind_maxy = 0;
+
     for (int i = 1; i < total; ++i)
     {
-        int y = out_points[i]->y;
-        if (out_points[ind_miny]->y > y) ind_miny = i;
-        if (out_points[ind_maxy]->y < y) ind_maxy = i;
+        const int y = out_points[i]->y;
+        if (out_points[ind_miny]->y > y)
+            ind_miny = i;
+        if (out_points[ind_maxy]->y < y)
+            ind_maxy = i;
     }
 
     return true;
-    
 }
 
 } // namespace cv
