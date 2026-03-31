@@ -11,7 +11,7 @@ bool convex_hull_bucket_sort(const Point* data,
                              int& ind_maxy)
 {
     if (total <= 0)
-        return true;
+            return true;
 
     // 1) Find minX and maxX
     int minX = data[0].x;
@@ -54,10 +54,9 @@ bool convex_hull_bucket_sort(const Point* data,
 
         const Point* pmin = min_buckets[i];
         const Point* pmax = max_buckets[i];
-        
-        ASSERT_TRUE(pmax == nullptr || pmin->y <= pmax->y);
+        CV_Assert(pmax == nullptr || pmin->y <= pmax->y);
         out_points[out++] = const_cast<Point*>(pmin);
-        curc= out-1;
+        cur= out-1;
         int y = out_points[cur]->y;
         if (out_points[ind_miny]->y > y)
             ind_miny = cur;
@@ -73,7 +72,6 @@ bool convex_hull_bucket_sort(const Point* data,
             }    
     }
     total = out;
-
     return true;
 }
 } // namespace cv
