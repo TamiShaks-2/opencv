@@ -299,6 +299,7 @@ TEST(Imgproc_ConvexHull, dense_columns_consistency)
             << "Mismatch at hull vertex " << i;
     }
 }
+
 struct BucketSortCmpPoints
 {
     bool operator()(const Point* p1, const Point* p2) const
@@ -312,11 +313,11 @@ struct BucketSortCmpPoints
 };
 
 // ============================================================================
-//Helper functions for testing convex_hull_bucket_sort. These are not tests themselves, but utilities that the actual tests will call. 
-//They are defined in an anonymous namespace to avoid polluting the global namespace.
-
-//This one converts a vector of Points to a vector of Point pointers, which is the format that convex_hull_bucket_sort expects for its output.
+// Helper functions for testing convex_hull_bucket_sort.
+// These are not tests themselves, but utilities that the actual tests will call.
 // ============================================================================
+
+// converts a vector of Points to a vector of Point pointers, which is the format that convex_hull_bucket_sort expects for its output.
 static std::vector<Point*> makePointerArray(std::vector<Point>& points)
 {
     std::vector<Point*> ptrs(points.size());
@@ -326,7 +327,8 @@ static std::vector<Point*> makePointerArray(std::vector<Point>& points)
 }
 
 // ============================================================================
-//This function computes the indices of the points with minimum and maximum Y values in a vector of Point pointers. This is used to verify that convex_hull_bucket_sort correctly identifies these indices.
+// This function computes the indices of the points with minimum and maximum Y values in a vector of Point pointers.
+// This is used to verify that convex_hull_bucket_sort correctly identifies these indices.
 // ============================================================================
 static void computeMinMaxYIndicesReference(const std::vector<Point*>& ptrs,
                                            int& miny_ind,
@@ -348,7 +350,7 @@ static void computeMinMaxYIndicesReference(const std::vector<Point*>& ptrs,
 }
 
 // ============================================================================
-// This function takes a vector of Point pointers that are sorted by X (and Y as a tiebreaker), and compresses it by keeping only the points with minimum and maximum Y for each unique X value. This mimics the output format of convex_hull_bucket_sort, which is designed to be efficient for cases with many points sharing the same X coordinate.
+// takes a vector of Point pointers that are sorted by X (and Y as a tiebreaker) and compresses it by keeping only the points with minimum and maximum Y for each unique X value. This mimics the output format of convex_hull_bucket_sort, which is designed to be efficient for cases with many points sharing the same X coordinate.
 // ============================================================================
 static std::vector<Point*> buildCompressedReference(std::vector<Point*>& sorted_ptrs)
 {
@@ -386,7 +388,7 @@ static std::vector<Point*> buildCompressedReference(std::vector<Point*>& sorted_
 }
 
 // ============================================================================
-//This function generates a vector of Points with a specified number of points, a specified range for the X coordinate, and specified minimum and maximum values for the Y coordinate. The X coordinates are generated in a way that creates many points with the same X value (dense columns), which is the scenario where convex_hull_bucket_sort is expected to perform well.
+// This function generates a vector of Points with a specified number of points, a specified range for the X coordinate, and specified minimum and maximum values for the Y coordinate. The X coordinates are generated in a way that creates many points with the same X value (dense columns), which is the scenario where convex_hull_bucket_sort is expected to perform well.
 // ============================================================================
 static std::vector<Point> generateDenseColumnsPoints(int total_points,
                                                      int range_x,
@@ -447,14 +449,14 @@ static void runReferenceSortCompressed(std::vector<Point>& points,
 {
     std::vector<Point*> sorted_ptrs = makePointerArray(points);
 
-    //The same sorting logic as in bucket_sort, to ensure that the compressed output will be in the same order. This is important for a fair comparison, since bucket_sort's output is not just any sorted order, but specifically sorted by X and then Y.
+    // The same sorting logic as in bucket_sort, to ensure that the compressed output will be in the same order. This is important for a fair comparison, since bucket_sort's output is not just any sorted order, but specifically sorted by X and then Y.
     std::sort(sorted_ptrs.begin(), sorted_ptrs.end(), BucketSortCmpPoints());
     out_ptrs = buildCompressedReference(sorted_ptrs);
     computeMinMaxYIndicesReference(out_ptrs, miny_ind, maxy_ind);
 }
 
 // ============================================================================
-//Test 1: correctness on a small, hand-crafted input with dense columns (many points sharing the same X coordinate). This test checks that the output of bucket_sort matches the reference implementation exactly, including the order of points and the minY/maxY indices. This is a basic sanity check to ensure that bucket_sort is correctly handling the case it is designed for.
+// Test 1: correctness on a small, hand-crafted input with dense columns (many points sharing the same X coordinate). This test checks that the output of bucket_sort matches the reference implementation exactly, including the order of points and the minY/maxY indices. This is a basic sanity check to ensure that bucket_sort is correctly handling the case it is designed for.
 // ============================================================================
 TEST(Imgproc_ConvexHullBucketSort, dense_columns_matches_reference)
 {
@@ -481,10 +483,10 @@ TEST(Imgproc_ConvexHullBucketSort, dense_columns_matches_reference)
     int ref_miny = -1;
     int ref_maxy = -1;
 
-    //Run the Bucket sort
+    // Run the Bucket sort
     ASSERT_TRUE(runBucketSort(bucket_points, bucket_out, bucket_total, bucket_miny, bucket_maxy));
 
-    //Run the reference sort + compression
+    // Run the reference sort + compression
     runReferenceSortCompressed(ref_points, ref_out, ref_miny, ref_maxy);
 
     //
@@ -522,7 +524,6 @@ TEST(Imgproc_ConvexHullBucketSort, dense_columns_matches_reference)
 TEST(Imgproc_ConvexHullBucketSort, random_dense_columns_match_reference)
 {
     const int kIterations = 50;
-
     for (int iter = 0; iter < kIterations; ++iter)
     {
         SCOPED_TRACE(cv::format("iteration=%d", iter));
@@ -534,7 +535,6 @@ TEST(Imgproc_ConvexHullBucketSort, random_dense_columns_match_reference)
         const int range_x = 16;
 
         std::vector<Point> points = generateDenseColumnsPoints(total_points, range_x, -1000, 1000, 12345 + iter);
-
         std::vector<Point> bucket_points = points;
         std::vector<Point> ref_points = points;
 
@@ -577,6 +577,8 @@ TEST(Imgproc_ConvexHullBucketSort, random_dense_columns_match_reference)
 // למה "בלבד"?
 // כדי לא למדוד generation / הקצאות / assertions,
 // אלא רק את החלק שאנחנו באמת רוצות להשוות.
+
+// returns: average measured runtime in microseconds
 // ============================================================================
 static double benchmarkBucketSortOnly(const std::vector<Point>& input_points,
                                       int iterations)
@@ -596,17 +598,13 @@ static double benchmarkBucketSortOnly(const std::vector<Point>& input_points,
         int maxy_ind = 0;
 
         auto t0 = high_resolution_clock::now();
-
         bool ok = convex_hull_bucket_sort(points.data(),
                                           ptrs.data(),
                                           total,
                                           miny_ind,
-                                          maxy_ind);
-
-        
+                                          maxy_ind);        
         auto t1 = high_resolution_clock::now();
 
-        // benchmark הזה מיועד רק למקרים שבהם bucket אמור לעבוד
         EXPECT_TRUE(ok);
         if (!ok)
             return -1.0;
@@ -703,11 +701,9 @@ TEST(Imgproc_ConvexHullBucketSortPerf, DISABLED_dense_columns_bucket_vs_std_sort
         // warmup ל-cache/allocator
         (void)benchmarkBucketSortOnly(points, kWarmupIterations);
         (void)benchmarkReferenceCompressedSort(points, kWarmupIterations);
-
-        //Real 
+        // time measurment 
         const double bucket_us = benchmarkBucketSortOnly(points, kMeasureIterations);
         const double sort_us   = benchmarkReferenceCompressedSort(points, kMeasureIterations);
-
         std::cout
             << "\n[BucketSortPerf] case=" << tc.name
             << " total_points=" << tc.total_points
@@ -943,11 +939,9 @@ TEST(Imgproc_ConvexHull, overflow)
     ASSERT_EQ(hull, hullf);
 }
 
-static
-bool checkMinAreaRect(const RotatedRect& rr, const Mat& c, double eps = 0.5f)
+static bool checkMinAreaRect(const RotatedRect& rr, const Mat& c, double eps = 0.5f)
 {
     int N = c.rows;
-
     Mat rr_pts;
     boxPoints(rr, rr_pts);
 
@@ -1015,9 +1009,7 @@ TEST(Imgproc_minAreaRect, reproducer_18157)
     };
 
     Mat contour(N, 1, CV_32FC2, (void*)pts_);
-
     RotatedRect rr = cv::minAreaRect(contour);
-
     EXPECT_TRUE(checkMinAreaRect(rr, contour)) << rr.center << " " << rr.size << " " << rr.angle;
 }
 
@@ -1032,10 +1024,9 @@ TEST(Imgproc_minAreaRect, reproducer_19769_lightweight)
             {2169, 1123}, {2315, 979}, {2395, 900}, {2438, 787},
             {2434, 782}, {2416, 762}, {2266, 610}
     };
+
     Mat contour(N, 1, CV_32FC2, (void*)pts_);
-
     RotatedRect rr = cv::minAreaRect(contour);
-
     EXPECT_TRUE(checkMinAreaRect(rr, contour)) << rr.center << " " << rr.size << " " << rr.angle;
 }
 
@@ -1087,10 +1078,9 @@ TEST(Imgproc_minAreaRect, reproducer_19769)
             {1888, 234}, {1880, 230}, {1877, 229}, {1874, 228},
             {1870, 227}
     };
+
     Mat contour(N, 1, CV_32FC2, (void*)pts_);
-
     RotatedRect rr = cv::minAreaRect(contour);
-
     EXPECT_TRUE(checkMinAreaRect(rr, contour)) << rr.center << " " << rr.size << " " << rr.angle;
 }
 
