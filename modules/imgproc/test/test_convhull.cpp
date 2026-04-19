@@ -302,6 +302,7 @@ TEST(Imgproc_ConvexHull, dense_columns_consistency)
 
 struct BucketSortCmpPoints
 {
+    // Sort point pointers by x, then y, then address for duplicates.
     bool operator()(const Point* p1, const Point* p2) const
     {
         if (p1->x != p2->x)
@@ -312,12 +313,8 @@ struct BucketSortCmpPoints
     }
 };
 
-// ============================================================================
-// Helper functions for testing convex_hull_bucket_sort.
-// These are not tests themselves, but utilities that the actual tests will call.
-// ============================================================================
 
-// converts a vector of Points to a vector of Point pointers, which is the format that convex_hull_bucket_sort expects for its output.
+// Build the pointer array expected by convex_hull_bucket_sort.
 static std::vector<Point*> makePointerArray(std::vector<Point>& points)
 {
     std::vector<Point*> ptrs(points.size());
@@ -326,10 +323,7 @@ static std::vector<Point*> makePointerArray(std::vector<Point>& points)
     return ptrs;
 }
 
-// ============================================================================
-// This function computes the indices of the points with minimum and maximum Y values in a vector of Point pointers.
-// This is used to verify that convex_hull_bucket_sort correctly identifies these indices.
-// ============================================================================
+// Find the indices of the minimum-y and maximum-y points.
 static void computeMinMaxYIndicesReference(const std::vector<Point*>& ptrs,
                                            int& miny_ind,
                                            int& maxy_ind)
@@ -349,9 +343,7 @@ static void computeMinMaxYIndicesReference(const std::vector<Point*>& ptrs,
     }
 }
 
-// ============================================================================
-// takes a vector of Point pointers that are sorted by X (and Y as a tiebreaker) and compresses it by keeping only the points with minimum and maximum Y for each unique X value. This mimics the output format of convex_hull_bucket_sort, which is designed to be efficient for cases with many points sharing the same X coordinate.
-// ============================================================================
+// Keep only the lowest and highest y for each x in sorted input.
 static std::vector<Point*> buildCompressedReference(std::vector<Point*>& sorted_ptrs)
 {
     std::vector<Point*> compressed;
@@ -362,22 +354,17 @@ static std::vector<Point*> buildCompressedReference(std::vector<Point*>& sorted_
     int i = 0;
     while (i < (int)sorted_ptrs.size())
     {
-        // תחילת בלוק של אותו x
         int j = i;
         const int x = sorted_ptrs[i]->x;
 
-        // נתקדם עד סוף הבלוק של אותו x
         while (j < (int)sorted_ptrs.size() && sorted_ptrs[j]->x == x)
             ++j;
 
-        // sorted_ptrs[i] = הנקודה עם ה-y הכי קטן באותו x
-        // sorted_ptrs[j-1] = הנקודה עם ה-y הכי גדול באותו x
         Point* pmin = sorted_ptrs[i];
         Point* pmax = sorted_ptrs[j - 1];
 
         compressed.push_back(pmin);
 
-        // אם זו לא אותה נקודה, נוסיף גם את pmax
         if (pmax != pmin)
             compressed.push_back(pmax);
 
@@ -387,9 +374,7 @@ static std::vector<Point*> buildCompressedReference(std::vector<Point*>& sorted_
     return compressed;
 }
 
-// ============================================================================
-// This function generates a vector of Points with a specified number of points, a specified range for the X coordinate, and specified minimum and maximum values for the Y coordinate. The X coordinates are generated in a way that creates many points with the same X value (dense columns), which is the scenario where convex_hull_bucket_sort is expected to perform well.
-// ============================================================================
+// Generate random points with many repeated x values.
 static std::vector<Point> generateDenseColumnsPoints(int total_points,
                                                      int range_x,
                                                      int y_min,
@@ -405,10 +390,7 @@ static std::vector<Point> generateDenseColumnsPoints(int total_points,
 
     for (int i = 0; i < total_points; ++i)
     {
-        // x בטווח קטן -> הרבה התנגשויות באותם buckets
         int x = rng.uniform(0, range_x);
-
-        // y בטווח רגיל
         int y = rng.uniform(y_min, y_max);
 
         points.push_back(Point(x, y));
@@ -417,9 +399,7 @@ static std::vector<Point> generateDenseColumnsPoints(int total_points,
     return points;
 }
 
-// ============================================================================
-// This function runs convex_hull_bucket_sort on a given set of points and captures its output. It returns true if bucket_sort succeeded (i.e., it was able to sort the points using the bucket method), or false if bucket_sort determined that it cannot handle this input and the caller should fall back to std::sort.
-// ============================================================================
+// Run bucket sort and capture its compressed output.
 static bool runBucketSort(std::vector<Point>& points,
                           std::vector<Point*>& out_ptrs,
                           int& total,
@@ -439,9 +419,8 @@ static bool runBucketSort(std::vector<Point>& points,
 
     return ok;
 }
-// ============================================================================
-// This function runs a reference implementation of the sorting and compression logic that convex_hull_bucket_sort is supposed to perform. It first sorts the points using std::sort with the same comparison logic, then compresses the sorted list to keep only the min and max Y for each X, and finally computes the minY and maxY indices on the compressed output. This serves as a correctness reference for the tests.
-// ============================================================================
+
+// Reference path: sort, compress by x, then compute min/max y.
 static void runReferenceSortCompressed(std::vector<Point>& points,
                                        std::vector<Point*>& out_ptrs,
                                        int& miny_ind,
@@ -449,15 +428,12 @@ static void runReferenceSortCompressed(std::vector<Point>& points,
 {
     std::vector<Point*> sorted_ptrs = makePointerArray(points);
 
-    // The same sorting logic as in bucket_sort, to ensure that the compressed output will be in the same order. This is important for a fair comparison, since bucket_sort's output is not just any sorted order, but specifically sorted by X and then Y.
     std::sort(sorted_ptrs.begin(), sorted_ptrs.end(), BucketSortCmpPoints());
     out_ptrs = buildCompressedReference(sorted_ptrs);
     computeMinMaxYIndicesReference(out_ptrs, miny_ind, maxy_ind);
 }
 
-// ============================================================================
-// Test 1: correctness on a small, hand-crafted input with dense columns (many points sharing the same X coordinate). This test checks that the output of bucket_sort matches the reference implementation exactly, including the order of points and the minY/maxY indices. This is a basic sanity check to ensure that bucket_sort is correctly handling the case it is designed for.
-// ============================================================================
+// Check bucket sort against the reference on a small dense-column case.
 TEST(Imgproc_ConvexHullBucketSort, dense_columns_matches_reference)
 {
     std::vector<Point> points{
@@ -483,23 +459,18 @@ TEST(Imgproc_ConvexHullBucketSort, dense_columns_matches_reference)
     int ref_miny = -1;
     int ref_maxy = -1;
 
-    // Run the Bucket sort
     ASSERT_TRUE(runBucketSort(bucket_points, bucket_out, bucket_total, bucket_miny, bucket_maxy));
 
-    // Run the reference sort + compression
     runReferenceSortCompressed(ref_points, ref_out, ref_miny, ref_maxy);
 
-    //
     ASSERT_EQ(bucket_out.size(), ref_out.size());
 
-    // משווים נקודה-נקודה
     for (size_t i = 0; i < bucket_out.size(); ++i)
     {
         EXPECT_EQ(*bucket_out[i], *ref_out[i])
             << "Mismatch in compressed output at index " << i;
     }
 
-    // בודקים שגם אינדקסי min/max זהים
     ASSERT_GE(bucket_miny, 0);
     ASSERT_GE(bucket_maxy, 0);
     ASSERT_LT(bucket_miny, (int)bucket_out.size());
@@ -509,18 +480,7 @@ TEST(Imgproc_ConvexHullBucketSort, dense_columns_matches_reference)
     EXPECT_EQ(bucket_out[bucket_maxy]->y, ref_out[ref_maxy]->y);
 }
 
-// ============================================================================
-// טסט 2:
-// random correctness על הרבה קלטים "צפופים".
-//
-// למה?
-// כי מקרה ידני אחד לא מספיק.
-// אנחנו רוצות הרבה ניסויים אקראיים, אבל עם seed קבוע כדי שהטסט יהיה reproducible.
-//
-// שימי לב:
-// אנחנו בודקות רק מצבים שבהם bucket_sort אמור לעבוד (ולא fallback),
-// כלומר rangeX קטן וסביר.
-// ============================================================================
+// Repeat the same check on many reproducible random dense-column inputs.
 TEST(Imgproc_ConvexHullBucketSort, random_dense_columns_match_reference)
 {
     const int kIterations = 50;
@@ -528,10 +488,7 @@ TEST(Imgproc_ConvexHullBucketSort, random_dense_columns_match_reference)
     {
         SCOPED_TRACE(cv::format("iteration=%d", iter));
 
-        // בכל איטרציה נגדיל קצת את גודל הקלט
         const int total_points = 200 + iter * 10;
-
-        // טווח X קטן יחסית -> מקרה טיפוסי טוב ל-bucket
         const int range_x = 16;
 
         std::vector<Point> points = generateDenseColumnsPoints(total_points, range_x, -1000, 1000, 12345 + iter);
@@ -570,16 +527,7 @@ TEST(Imgproc_ConvexHullBucketSort, random_dense_columns_match_reference)
     }
 }
 
-// ============================================================================
-// פונקציית עזר לבנצ'מרק:
-// מודדת זמן ממוצע של bucket_sort בלבד.
-//
-// למה "בלבד"?
-// כדי לא למדוד generation / הקצאות / assertions,
-// אלא רק את החלק שאנחנו באמת רוצות להשוות.
-
-// returns: average measured runtime in microseconds
-// ============================================================================
+// Measure average runtime of bucket sort only, in microseconds.
 static double benchmarkBucketSortOnly(const std::vector<Point>& input_points,
                                       int iterations)
 {
@@ -589,7 +537,6 @@ static double benchmarkBucketSortOnly(const std::vector<Point>& input_points,
 
     for (int iter = 0; iter < iterations; ++iter)
     {
-        // בכל איטרציה עובדים על עותק חדש, כדי שה-input יהיה זהה
         std::vector<Point> points = input_points;
         std::vector<Point*> ptrs = makePointerArray(points);
 
@@ -615,11 +562,7 @@ static double benchmarkBucketSortOnly(const std::vector<Point>& input_points,
     return total_us / iterations;
 }
 
-// ============================================================================
-// פונקציית עזר לבנצ'מרק:
-// מודדת זמן של std::sort + שלב min/max + דחיסה לפי x,
-// כדי שההשוואה תהיה הוגנת מול output-model של bucket_sort.
-// ============================================================================
+// Measure the reference sort-compress-minmax pipeline, in microseconds.
 static double benchmarkReferenceCompressedSort(const std::vector<Point>& input_points,
                                                int iterations)
 {
@@ -634,13 +577,8 @@ static double benchmarkReferenceCompressedSort(const std::vector<Point>& input_p
 
         auto t0 = high_resolution_clock::now();
 
-        // מיון סטנדרטי
         std::sort(ptrs.begin(), ptrs.end(), BucketSortCmpPoints());
-
-        // דחיסה לפי אותו כלל של bucket_sort
         std::vector<Point*> compressed = buildCompressedReference(ptrs);
-
-        // חישוב min/max על הפלט הדחוס
         int miny_ind = 0;
         int maxy_ind = 0;
         computeMinMaxYIndicesReference(compressed, miny_ind, maxy_ind);
@@ -653,22 +591,9 @@ static double benchmarkReferenceCompressedSort(const std::vector<Point>& input_p
     return total_us / iterations;
 }
 
-// ============================================================================
-// טסט 3:
-// benchmark ידני.
-//
-// למה DISABLED_?
-// כי benchmark תלוי במכונה, עומס מערכת, cache וכו'.
-// אנחנו לא רוצות שהוא ירוץ אוטומטית ב-CI וייכשל סתם.
-//
-// איך מריצים ידנית?
-// --gtest_filter=*BucketSortPerf*
-// ============================================================================
+// Manual benchmark for bucket sort versus the reference path.
 TEST(Imgproc_ConvexHullBucketSortPerf, DISABLED_dense_columns_bucket_vs_std_sort)
 {
-    // נגדיר כמה תרחישים טיפוסיים:
-    // total_points = גודל קלט
-    // range_x      = כמה עמודות X שונות יש
     struct Case
     {
         int total_points;
@@ -698,10 +623,9 @@ TEST(Imgproc_ConvexHullBucketSortPerf, DISABLED_dense_columns_bucket_vs_std_sort
                                                                100000,
                                                                777);
 
-        // warmup ל-cache/allocator
         (void)benchmarkBucketSortOnly(points, kWarmupIterations);
         (void)benchmarkReferenceCompressedSort(points, kWarmupIterations);
-        // time measurment 
+
         const double bucket_us = benchmarkBucketSortOnly(points, kMeasureIterations);
         const double sort_us   = benchmarkReferenceCompressedSort(points, kMeasureIterations);
         std::cout
@@ -718,15 +642,12 @@ TEST(Imgproc_ConvexHullBucketSortPerf, DISABLED_dense_columns_bucket_vs_std_sort
     }
 }
 
-// ============================================================================
-//Test 4:
-//
-// ============================================================================
+// Ensure bucket sort rejects inputs with an excessively large x range.
 TEST(Imgproc_ConvexHullBucketSort, rejects_huge_rangeX)
 {
     std::vector<Point> points{
         Point(0, 0),
-        Point(200000, 1),  // פער X גדול מאוד
+        Point(200000, 1),
         Point(400000, 2)
     };
 
