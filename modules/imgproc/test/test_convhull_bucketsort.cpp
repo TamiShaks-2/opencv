@@ -127,8 +127,7 @@ static std::vector<Point*> makePointerArray(std::vector<Point>& points)
     return ptrs;
 }
 
-// Find the indices of the minimum-y and maximum-y points.
-static void computeMinMaxYIndicesReference(const std::vector<Point*>& ptrs,
+static void findMinMaxYIndices(const std::vector<Point*>& ptrs,
                                            int& miny_ind,
                                            int& maxy_ind)
 {
@@ -147,8 +146,8 @@ static void computeMinMaxYIndicesReference(const std::vector<Point*>& ptrs,
     }
 }
 
-// Keep only the lowest and highest y for each x in sorted input.
-static std::vector<Point*> buildCompressedReference(std::vector<Point*>& sorted_ptrs)
+// Given a sorted pointer array, keeps only the lowest-y and highest-y point for each unique x value
+static std::vector<Point*> keepExtremeYPerX(std::vector<Point*>& sorted_ptrs)
 {
     std::vector<Point*> compressed;
 
@@ -203,7 +202,6 @@ static std::vector<Point> generateDenseColumnsPoints(int total_points,
     return points;
 }
 
-// Run bucket sort and capture its compressed output.
 static bool runBucketSort(std::vector<Point>& points,
                           std::vector<Point*>& out_ptrs,
                           int& total,
@@ -224,8 +222,9 @@ static bool runBucketSort(std::vector<Point>& points,
     return ok;
 }
 
-// Reference path: sort, compress by x, then compute min/max y.
-static void runReferenceSortCompressed(std::vector<Point>& points,
+// Sorts points with std::sort, extracts y-extremes per x, and finds min/max y indices.
+// Produces the ground-truth output that tests compare against.
+static void runReferenceSort(std::vector<Point>& points,
                                        std::vector<Point*>& out_ptrs,
                                        int& miny_ind,
                                        int& maxy_ind)
@@ -233,8 +232,8 @@ static void runReferenceSortCompressed(std::vector<Point>& points,
     std::vector<Point*> sorted_ptrs = makePointerArray(points);
 
     std::sort(sorted_ptrs.begin(), sorted_ptrs.end(), BucketSortCmpPoints());
-    out_ptrs = buildCompressedReference(sorted_ptrs);
-    computeMinMaxYIndicesReference(out_ptrs, miny_ind, maxy_ind);
+    out_ptrs = keepExtremeYPerX(sorted_ptrs);
+    findMinMaxYIndices(out_ptrs, miny_ind, maxy_ind);
 }
 
 // Check bucket sort against the reference on a small dense-column case.
@@ -265,7 +264,7 @@ TEST(Imgproc_ConvexHullBucketSort, dense_columns_matches_reference)
 
     ASSERT_TRUE(runBucketSort(bucket_points, bucket_out, bucket_total, bucket_miny, bucket_maxy));
 
-    runReferenceSortCompressed(ref_points, ref_out, ref_miny, ref_maxy);
+    runReferenceSort(ref_points, ref_out, ref_miny, ref_maxy);
 
     ASSERT_EQ(bucket_out.size(), ref_out.size());
 
@@ -310,7 +309,7 @@ TEST(Imgproc_ConvexHullBucketSort, random_dense_columns_match_reference)
         int ref_maxy = -1;
 
         ASSERT_TRUE(runBucketSort(bucket_points, bucket_out, bucket_total, bucket_miny, bucket_maxy));
-        runReferenceSortCompressed(ref_points, ref_out, ref_miny, ref_maxy);
+        runReferenceSort(ref_points, ref_out, ref_miny, ref_maxy);
 
         ASSERT_EQ(bucket_out.size(), ref_out.size());
 
@@ -367,7 +366,8 @@ static double benchmarkBucketSortOnly(const std::vector<Point>& input_points,
 }
 
 // Measure the reference sort-compress-minmax pipeline, in microseconds.
-static double benchmarkReferenceCompressedSort(const std::vector<Point>& input_points,
+// Provides the baseline timing for the perf test.
+static double benchmarkReferenceSortOnly(const std::vector<Point>& input_points,
                                                int iterations)
 {
     using namespace std::chrono;
@@ -382,10 +382,10 @@ static double benchmarkReferenceCompressedSort(const std::vector<Point>& input_p
         auto t0 = high_resolution_clock::now();
 
         std::sort(ptrs.begin(), ptrs.end(), BucketSortCmpPoints());
-        std::vector<Point*> compressed = buildCompressedReference(ptrs);
+        std::vector<Point*> compressed = keepExtremeYPerX(ptrs);
         int miny_ind = 0;
         int maxy_ind = 0;
-        computeMinMaxYIndicesReference(compressed, miny_ind, maxy_ind);
+        findMinMaxYIndices(compressed, miny_ind, maxy_ind);
 
         auto t1 = high_resolution_clock::now();
 
@@ -428,10 +428,10 @@ TEST(Imgproc_ConvexHullBucketSortPerf, DISABLED_dense_columns_bucket_vs_std_sort
                                                                777);
 
         (void)benchmarkBucketSortOnly(points, kWarmupIterations);
-        (void)benchmarkReferenceCompressedSort(points, kWarmupIterations);
+        (void)benchmarkReferenceSortOnly(points, kWarmupIterations);
 
         const double bucket_us = benchmarkBucketSortOnly(points, kMeasureIterations);
-        const double sort_us   = benchmarkReferenceCompressedSort(points, kMeasureIterations);
+        const double sort_us   = benchmarkReferenceSortOnly(points, kMeasureIterations);
         std::cout
             << "\n[BucketSortPerf] case=" << tc.name
             << " total_points=" << tc.total_points
