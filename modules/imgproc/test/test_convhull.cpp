@@ -240,7 +240,6 @@ TEST_P(ConvexityDefects_regression_5908, simple)
     EXPECT_EQ(4, (int)result.size());
 }
 
-//NEW ONE!!!!-that i worte🎉🤩🤩
 TEST(Imgproc_ConvexHull, dense_columns_consistency)
 {
     std::vector<Point> points{
@@ -302,7 +301,7 @@ TEST(Imgproc_ConvexHull, dense_columns_consistency)
 
 struct BucketSortCmpPoints
 {
-    // Sort point pointers by x, then y, then address for duplicates.
+    // Sort point pointers by x, then by y.
     bool operator()(const Point* p1, const Point* p2) const
     {
         if (p1->x != p2->x)
@@ -860,9 +859,11 @@ TEST(Imgproc_ConvexHull, overflow)
     ASSERT_EQ(hull, hullf);
 }
 
-static bool checkMinAreaRect(const RotatedRect& rr, const Mat& c, double eps = 0.5f)
+static
+bool checkMinAreaRect(const RotatedRect& rr, const Mat& c, double eps = 0.5f)
 {
     int N = c.rows;
+
     Mat rr_pts;
     boxPoints(rr, rr_pts);
 
@@ -930,7 +931,9 @@ TEST(Imgproc_minAreaRect, reproducer_18157)
     };
 
     Mat contour(N, 1, CV_32FC2, (void*)pts_);
+
     RotatedRect rr = cv::minAreaRect(contour);
+
     EXPECT_TRUE(checkMinAreaRect(rr, contour)) << rr.center << " " << rr.size << " " << rr.angle;
 }
 
@@ -947,7 +950,9 @@ TEST(Imgproc_minAreaRect, reproducer_19769_lightweight)
     };
 
     Mat contour(N, 1, CV_32FC2, (void*)pts_);
+
     RotatedRect rr = cv::minAreaRect(contour);
+
     EXPECT_TRUE(checkMinAreaRect(rr, contour)) << rr.center << " " << rr.size << " " << rr.angle;
 }
 
@@ -999,9 +1004,10 @@ TEST(Imgproc_minAreaRect, reproducer_19769)
             {1888, 234}, {1880, 230}, {1877, 229}, {1874, 228},
             {1870, 227}
     };
-
     Mat contour(N, 1, CV_32FC2, (void*)pts_);
+
     RotatedRect rr = cv::minAreaRect(contour);
+
     EXPECT_TRUE(checkMinAreaRect(rr, contour)) << rr.center << " " << rr.size << " " << rr.angle;
 }
 
