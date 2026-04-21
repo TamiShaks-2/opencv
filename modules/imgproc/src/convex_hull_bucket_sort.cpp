@@ -3,6 +3,7 @@
 #include <vector>
 #include <algorithm>
 #include <climits>
+
 namespace cv {
 bool convex_hull_bucket_sort(const Point* data,
                              Point** out_points,
@@ -10,8 +11,9 @@ bool convex_hull_bucket_sort(const Point* data,
                              int& ind_miny,
                              int& ind_maxy)
 {
-    if (total <= 0)
-            return true;
+    if (total <= 0) {
+        return true;
+    }
 
     // 1) Find minX and maxX
     int minX = data[0].x;
@@ -71,6 +73,7 @@ bool convex_hull_bucket_sort(const Point* data,
                     ind_maxy = cur;
             }    
     }
+
     total = out;
     return true;
 }

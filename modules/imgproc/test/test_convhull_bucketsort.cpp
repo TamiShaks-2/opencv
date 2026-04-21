@@ -45,7 +45,7 @@
 
 namespace opencv_test { namespace {
 
-TEST(Imgproc_ConvexHull, dense_columns_consistency)
+TEST(Imgproc_ConvexHull, dense_columns_correct_hull)
 {
     std::vector<Point> points{
         Point(0, 0), Point(0, 2), Point(0, 5),
