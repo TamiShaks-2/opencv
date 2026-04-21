@@ -39,12 +39,10 @@
 //
 //M*/
 
-#include "opencv2/core/hal/interface.h"
-#include "opencv2/ts.hpp"
-#include "opencv2/ts/cuda_test.hpp"
 #include "test_precomp.hpp"
 #include <chrono>
 #include "../src/convex_hull_bucket_sort.hpp"
+
 namespace opencv_test { namespace {
 
 TEST(Imgproc_ConvexHull, dense_columns_consistency)
