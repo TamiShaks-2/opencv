@@ -1321,7 +1321,31 @@ TEST_P(convexHull_monotonous, self_intersecting_contour)
     minMaxLoc(ref, nullptr, nullptr, &minLoc);
     std::rotate(ref.begin<int>(), ref.begin<int>() + minLoc.y, ref.end<int>());
 
-    ASSERT_EQ( cvtest::norm(indices, ref, NORM_INF), 0) << indices;
+    std::vector<Point> actual_pts;
+    actual_pts.reserve(indices.total());
+    for (auto it = indices.begin<int>(); it != indices.end<int>(); ++it)
+        actual_pts.push_back(contour[*it]);
+
+    std::vector<Point> expected_pts;
+    expected_pts.reserve(ref.total());
+    for (auto it = ref.begin<int>(); it != ref.end<int>(); ++it)
+        expected_pts.push_back(contour[*it]);
+
+    std::ostringstream diagnose;
+    diagnose << "\ncontour     =";
+    for (size_t k = 0; k < contour.size(); ++k)
+        diagnose << " " << contour[k];
+    diagnose << "\nexpected indices = " << ref.t();
+    diagnose << "\nactual indices   = " << indices.t();
+    diagnose << "\nexpected points  =";
+    for (size_t k = 0; k < expected_pts.size(); ++k)
+        diagnose << " " << expected_pts[k];    
+    diagnose << "\nactual points    =";
+    for (size_t k = 0; k < actual_pts.size(); ++k)
+        diagnose << " " << actual_pts[k];
+
+    ASSERT_EQ(actual_pts, expected_pts) << diagnose.str();
+    // ASSERT_EQ( cvtest::norm(indices, ref, NORM_INF), 0) << indices;
 }
 INSTANTIATE_TEST_CASE_P(Imgproc, convexHull_monotonous,
     testing::Combine(
