@@ -38,40 +38,48 @@ bool convex_hull_bucket_sort(const Point* data,
         const int x = data[i].x;
         const int y = data[i].y;
         const int idx = x - minX;
-        if (min_buckets[idx] == nullptr || y < min_buckets[idx]->y)
+        if (min_buckets[idx] == nullptr || y < min_buckets[idx]->y) {
             min_buckets[idx] = &data[i];
-        if (max_buckets[idx] == nullptr || y > max_buckets[idx]->y)
+        }
+        if (max_buckets[idx] == nullptr || y > max_buckets[idx]->y) {
             max_buckets[idx] = &data[i];
+        }
     }
 
     // 4) Rebuild output pointer array in sorted X order
     int out = 0;
     ind_miny = 0;
     ind_maxy = 0;
-    int cur = 0;
     for (int i = 0; i < rangeX; ++i)
     {
-        if (min_buckets[i] == nullptr)
+        const Point* pmin = min_buckets[i];        
+        if (pmin == nullptr) {
+            CV_Assert(max_buckets[i] == nullptr);
             continue;
-
-        const Point* pmin = min_buckets[i];
+        }
         const Point* pmax = max_buckets[i];
         CV_Assert(pmax == nullptr || pmin->y <= pmax->y);
         out_points[out++] = const_cast<Point*>(pmin);
-        cur= out-1;
+
+        int cur = out - 1;
         int y = out_points[cur]->y;
-        if (out_points[ind_miny]->y > y)
+        if (out_points[ind_miny]->y > y) {
             ind_miny = cur;
-        if (out_points[ind_maxy]->y < y)
-                    ind_maxy = cur;
+        }
+        if (out_points[ind_maxy]->y < y) {
+            ind_maxy = cur;
+        }
+
+        CV_Assert(pmax != nullptr);
         if (pmax != pmin)
-            {
-                out_points[out++] = const_cast<Point*>(pmax);
-                cur = out-1;
-                y=out_points[cur]->y;
-                if (out_points[ind_maxy]->y < y)
-                    ind_maxy = cur;
-            }    
+        {
+            out_points[out++] = const_cast<Point*>(pmax);
+            cur = out - 1;
+            y = out_points[cur]->y;
+            if (out_points[ind_maxy]->y < y) {
+                ind_maxy = cur;
+            }
+        }    
     }
 
     total = out;
